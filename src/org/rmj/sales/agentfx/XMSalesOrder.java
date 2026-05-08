@@ -158,7 +158,7 @@ public class XMSalesOrder{
         } else{
             if(!poData.getTranStatus().equals(TransactionStatus.STATE_OPEN)){
                 psErrMsgx = "Can't update processed transactions!!!";
-                psWarnMsg = "Trasaction may be PAYED/CANCELLED/POSTED.";
+                psWarnMsg = "Trasaction may be PAID/CANCELLED/POSTED.";
                 return false;
             }            
             

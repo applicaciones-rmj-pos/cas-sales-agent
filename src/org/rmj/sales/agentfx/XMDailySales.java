@@ -216,9 +216,11 @@ public class XMDailySales {
                     lsSQL = MiscUtil.addCondition(lsSQL, lsCondition);
                     p_oTrans = loadSummary(lsSQL);
                     
-                    setMessage("Your shift for this day was already closed.");
-                    p_nSaleStat = 5;
-                    return false; 
+                    if (p_oTrans != null) {
+                        setMessage("Your shift for this day was already closed.");
+                        p_nSaleStat = 5;
+                        return false; 
+                    }
                 }else if (loRS.getString("cTranStat").equals(TransactionStatus.STATE_POSTED)){
                     setMessage("Sales for the day was already closed.");
                     p_nSaleStat = 1;
@@ -508,7 +510,7 @@ public class XMDailySales {
                         " ORDER BY dOpenedxx DESC LIMIT 1";
                 loRS = p_oApp.executeQuery(lsSQL);
                 
-                double lnNetAmnt = (double) p_oTrans.getSalesAmount() - ((double) p_oTrans.getDiscount() + (double) p_oTrans.getPWDDisc() + (double) p_oTrans.getVATDisc());
+                double lnNetAmnt = (double) p_oTrans.getSalesAmount();
                 if (!loRS.next())
                     p_oTrans.setAccumulatedSale(lnNetAmnt);
                 else 
@@ -696,7 +698,6 @@ public class XMDailySales {
                                                                 " AND sCRMNumbr = " + SQLUtil.toSQL(fsCRMNumbr) +
                                                                 " AND cTranStat IN ('1', '2')");
             ResultSet loRS = p_oApp.executeQuery(lsSQL);
-            
             long lnRow = MiscUtil.RecordCount(loRS);
             if (lnRow == 0){
                 ShowMessageFX.Warning("There are no transaction for the given date.", "", null);
@@ -762,12 +763,15 @@ public class XMDailySales {
                                                                     " AND " + SQLUtil.toSQL(fsPrdThrux) + ")"+
                                                                 " AND sCRMNumbr = " + SQLUtil.toSQL(fsCRMNumbr) +
                                                                 " AND cTranStat IN ('1', '2')");
+            
+            
+            System.out.println(lsSQL);
             ResultSet loRS = p_oApp.executeQuery(lsSQL);
             
             long lnRow = MiscUtil.RecordCount(loRS);
             if (lnRow == 0){
-                ShowMessageFX.Warning("There are no transaction for the given date.", "", null);
-                return false;
+//                ShowMessageFX.Warning("There are no transaction for the given date.", "", null);
+//                return false;
             }
             loRS.beforeFirst();
             
@@ -962,7 +966,7 @@ public class XMDailySales {
 
             lnNonVATxx = lnSalesAmt - (lnVATSales + lnZeroRatd + lnVATAmtxx + lnVoidAmnt);
             
-            p_oTrans.setSalesAmount((lnSalesAmt + lnDiscount + lnVatDiscx + lnPWDDiscx) - p_oTrans.getReturnAmount().doubleValue());
+            p_oTrans.setSalesAmount((lnSalesAmt ) - p_oTrans.getReturnAmount().doubleValue());
             
             p_oTrans.setVATableSales(lnVATSales);
             p_oTrans.setVATAmount(lnVATAmtxx);
@@ -1108,7 +1112,7 @@ public class XMDailySales {
         loMasx.put("webserver", p_sWebSvr);
         loMasx.put("printer", p_sPrintr);
         //END - BODY
-        
+        System.out.println(loMasx.toString());
         loJSON = EPSONPrint.XReading(loMasx);
         
         if ("success".equals(((String) loJSON.get("result")).toLowerCase())){
@@ -1284,7 +1288,10 @@ public class XMDailySales {
             double lnVoidAmnt = 0.00;   //Void Transactions
             
             foRS.beforeFirst();
+            
             while (foRS.next()){
+                loJSON.put("dClosedxx", SQLUtil.dateFormat(foRS.getString("dClosedxx"), SQLUtil.FORMAT_TIMESTAMP));
+            
                 if (!foRS.getString("sORNoFrom").equals("") &&
                         Integer.parseInt(foRS.getString("sORNoFrom")) < Integer.parseInt(lsORNoFrom)) {
                     lsORNoFrom = foRS.getString("sORNoFrom");
@@ -1294,6 +1301,7 @@ public class XMDailySales {
                         Integer.parseInt(foRS.getString("sORNoThru")) > Integer.parseInt(lsORNoThru)) {
                     lsORNoFrom = foRS.getString("sORNoThru");
                 }
+                
                 
                 //compute gross sales
                 lnSalesAmt = lnSalesAmt + foRS.getDouble("nSalesAmt");
@@ -1351,6 +1359,15 @@ public class XMDailySales {
             loJSON.put("nPrevSale", fnPrevSale);
             
             loJSON.put("dSysDatex", SQLUtil.dateFormat(p_oApp.getServerDate(), SQLUtil.FORMAT_TIMESTAMP));
+            
+            String lsSQL = "SELECT nResetCtr FROM Cash_Reg_Machine WHERE sIDNumber = " + SQLUtil.toSQL(p_sPOSNo);
+            ResultSet loRS = p_oApp.executeQuery(lsSQL);
+            
+            int lnResetCounter = 0;
+            if (loRS.next()){
+             lnResetCounter = loRS.getInt("nResetCtr");
+            }
+            loJSON.put("nResetCtr", lnResetCounter);
 
             loMasx.put("Detail", loJSON);
             loMasx.put("webserver", p_sWebSvr);
